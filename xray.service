@@ -1,20 +1,59 @@
 [Unit]
-Description=Xray Start
-After=network-online.target
-
+# Defines dependencies and metadata for the Xray service
+Description=Xray Service
+Documentation=https://github.com/XTLS/Xray-core
+# Ensures network connectivity is available before starting
+After=network.target nss-lookup.target
+Wants=network-online.target
 
 [Service]
-Type=exec
-WorkingDirectory=/usr/bin/xray
-User=xray
-Group=xray
-ExecStart=/usr/bin/xray/xray -config=/etc/xray/config.json
-Restart=always
-LogsDirectory=xray
-LogsDirectoryMode=0755
-ConfigurationDirectory=xray
-ConfigurationDirectoryMode=0755
+# Basic service configuration
+Type=simple                    # Main process is the long-running process
+User=xray                     # Run as xray user for security
+Group=xray                    # Run as xray group
+WorkingDirectory=/usr/bin/xray # Set working directory
+ExecStart=/usr/bin/xray/xray -config=/etc/xray/config.json # Command to start Xray
 
+# Restart configuration
+Restart=on-failure            # Restart only if service fails
+RestartPreventExitStatus=23   # Don't restart if exit code is 23 (typically a configuration error)
+RestartSec=5s                 # Wait 5 seconds before restart
+
+# Resource limits
+LimitNOFILE=1000000          # Maximum number of open files
+LimitNPROC=1000000           # Maximum number of processes
+
+# Security enhancements
+NoNewPrivileges=true         # Prevent gaining new privileges
+PrivateTmp=true              # Private /tmp directory
+PrivateDevices=true          # Restrict direct device access
+ProtectSystem=strict         # Read-only access to system files
+ProtectHome=true             # No access to home directories
+ReadWritePaths=/etc/xray     # Allow writing only to /etc/xray
+
+# Network capabilities
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE    # Limit capabilities to network administration
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE      # Grant network capabilities
+
+# Additional security measures
+SecureBits=no-setuid-fixup-locked no-setgid-fixup-locked    # Lock security bits
+ProtectKernelTunables=true   # Prevent modifications to kernel parameters
+ProtectKernelModules=true    # Prevent loading kernel modules
+ProtectControlGroups=true    # Protect control groups
+ProtectKernelLogs=true       # Prevent access to kernel logs
+MemoryDenyWriteExecute=true  # Prevent memory regions from being both writable and executable
+RestrictRealtime=true        # Prevent realtime scheduling
+
+# System call restrictions
+SystemCallArchitectures=native          # Allow only native architecture system calls
+SystemCallFilter=@system-service        # Filter system calls to only those needed
+SystemCallErrorNumber=EPERM             # Return "Operation not permitted" for blocked calls
+
+# Logging configuration
+StandardOutput=journal       # Send stdout to systemd journal
+StandardError=journal        # Send stderr to systemd journal
+SyslogIdentifier=xray       # Identifier in system logs
 
 [Install]
-WantedBy=network-online.target
+# Enable service on system boot
+WantedBy=multi-user.target   # Start service in multi-user environment
